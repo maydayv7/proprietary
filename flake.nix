@@ -19,7 +19,12 @@
     // {
       files = {
         discord = ./discord;
-        wallpapers = ./wallpapers;
+        wallpapers = with lib; let
+          path = ./wallpapers;
+        in
+          (lib.mapAttrs' (name: _: lib.nameValuePair (lib.removeSuffix ".jpg" name) "${path}/${name}")
+            (builtins.readDir path))
+          // {inherit path;};
       };
     };
 }
