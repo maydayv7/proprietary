@@ -2,7 +2,7 @@
  * @name SplitLargeMessages
  * @author DevilBro
  * @authorId 278543574059057154
- * @version 1.8.0
+ * @version 1.8.2
  * @description Allows you to enter larger Messages, which will automatically split into several smaller Messages
  * @invite Jx3TjNS
  * @donate https://www.paypal.me/MircoWittrien
@@ -25,9 +25,14 @@ module.exports = (_ => {
 		getDescription () {return `The Library Plugin needed for ${this.name} is missing. Open the Plugin Settings to download it. \n\n${this.description}`;}
 		
 		downloadLibrary () {
-			require("request").get("https://mwittrien.github.io/BetterDiscordAddons/Library/0BDFDB.plugin.js", (e, r, b) => {
-				if (!e && b && r.statusCode == 200) require("fs").writeFile(require("path").join(BdApi.Plugins.folder, "0BDFDB.plugin.js"), b, _ => BdApi.showToast("Finished downloading BDFDB Library", {type: "success"}));
-				else BdApi.alert("Error", "Could not download BDFDB Library Plugin. Try again later or download it manually from GitHub: https://mwittrien.github.io/downloader/?library");
+			BdApi.Net.fetch("https://mwittrien.github.io/BetterDiscordAddons/Library/0BDFDB.plugin.js").then(r => {
+				if (!r || r.status != 200) throw new Error();
+				else return r.text();
+			}).then(b => {
+				if (!b) throw new Error();
+				else return require("fs").writeFile(require("path").join(BdApi.Plugins.folder, "0BDFDB.plugin.js"), b, _ => BdApi.showToast("Finished downloading BDFDB Library", {type: "success"}));
+			}).catch(error => {
+				BdApi.alert("Error", "Could not download BDFDB Library Plugin. Try again later or download it manually from GitHub: https://mwittrien.github.io/downloader/?library");
 			});
 		}
 		
@@ -56,17 +61,18 @@ module.exports = (_ => {
 			return template.content.firstElementChild;
 		}
 	} : (([Plugin, BDFDB]) => {
-		const messageDelay = 1000; //changing at own risk, might result in bans or mutes
+		const messageDelay = 2000; //changing at own risk, might result in bans or mutes
 		let maxMessageLength = 2000;
 	
 		return class SplitLargeMessages extends Plugin {
 			onLoad () {
 				this.defaults = {
 					general: {
-						byNewlines:		{value: false, 	description: "Try to split Messages on Newlines instead of Spaces",		note: "This will stop Sentences from being cut, but might result in more Messages being sent"},
+						byNewlines:	{value: false, 	description: "Try to split Messages on Newlines instead of Spaces",	note: "This will stop Sentences from being cut, but might result in more Messages being sent"},
 					},
 					amounts: {
-						splitCounter:	{value: 0, 		description: "Messages will be split after roughly X Characters"},
+						splitCounter:	{value: 0, 	description: "Messages will be split after roughly X Characters"},
+						maxMessages:	{value:	0,	description: "Maximum Number of split Messages",			note: "(0 for unlimited) Messages beyond this count will be discarded"}
 					}
 				};
 				
@@ -130,6 +136,20 @@ module.exports = (_ => {
 							max: maxMessageLength,
 							value: this.settings.amounts.splitCounter < 1000 || this.settings.amounts.splitCounter > maxMessageLength ? maxMessageLength : this.settings.amounts.splitCounter
 						}));
+
+						settingsItems.push(BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.SettingsSaveItem, {
+							type: "TextInput",
+							childProps: {
+								type: "number"
+							},
+							plugin: this,
+							keys: ["amounts", "maxMessages"],
+							label: this.defaults.amounts.maxMessages.description,
+							note: this.defaults.amounts.maxMessages.note,
+							min: 0,
+							max: 20,
+							value: this.settings.amounts.maxMessages
+						}));
 						
 						return settingsItems;
 					}
@@ -179,7 +199,7 @@ module.exports = (_ => {
 			}
 
 			processChannelTextAreaEditor (e) {
-				if (e.instance.props.type == BDFDB.DiscordConstants.ChannelTextAreaTypes.NORMAL || e.instance.props.type == BDFDB.DiscordConstants.ChannelTextAreaTypes.NORMAL_WITH_ACTIVITY || e.instance.props.type == BDFDB.LibraryComponents.ChannelTextAreaTypes.SIDEBAR) e.instance.props.uploadPromptCharacterCount = 999999999999999;
+				if (e.instance.props.type == BDFDB.DiscordConstants.ChannelTextAreaTypes.NORMAL || e.instance.props.type == BDFDB.DiscordConstants.ChannelTextAreaTypes.NORMAL_WITH_ACTIVITY || e.instance.props.type == BDFDB.LibraryComponents.ChannelTextAreaTypes.SIDEBAR) e.instance.props.uploadPromptCharacterCount = 100000;
 			}
 			
 			isSlowDowned (channel) {
@@ -187,7 +207,7 @@ module.exports = (_ => {
 			}
 
 			formatText (text) {
-				const separator = !this.settings.general.byNewlines ? "\n" : " ";
+				const separator = this.settings.general.byNewlines ? "\n" : " ";
 				const splitMessageLength = this.settings.amounts.splitCounter < 1000 || this.settings.amounts.splitCounter > maxMessageLength ? maxMessageLength : this.settings.amounts.splitCounter;
 				
 				text = text.replace(/\t/g, "    ");
@@ -231,7 +251,7 @@ module.exports = (_ => {
 						messages[j] = messages[j] + insertCodeLine;
 					}
 				}
-				return messages;
+				return this.settings.amounts.maxMessages ? messages.slice(0, this.settings.amounts.maxMessages) : messages;
 			}
 
 			setLabelsByLanguage () {
