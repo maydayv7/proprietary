@@ -15,7 +15,7 @@
       })
       // {
         files = {
-          discord = ./discord;
+          fonts = ./fonts;
           wallpapers = let
             path = ./wallpapers;
           in
