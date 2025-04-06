@@ -16,6 +16,7 @@
       // {
         files = {
           fonts = ./fonts;
+          shaders = ./shaders;
           wallpapers = let
             path = ./wallpapers;
           in
