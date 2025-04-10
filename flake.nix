@@ -10,19 +10,25 @@
     in
       utils.lib.eachDefaultSystem (system: let
         pkgs = nixpkgs.legacyPackages.${system};
+        call = path: pkgs.callPackage path {inherit lib pkgs;};
       in {
-        packages.fonts = pkgs.callPackage ./fonts {inherit lib pkgs;};
+        packages = {
+          fonts = call ./fonts;
+          cursors = call ./cursors;
+        };
       })
       // {
-        files = {
-          fonts = ./fonts;
-          shaders = ./shaders;
-          wallpapers = let
-            path = ./wallpapers;
-          in
-            (lib.mapAttrs' (name: _: lib.nameValuePair (lib.removeSuffix ".jpg" name) "${path}/${name}")
-              (builtins.readDir path))
+        files = let
+          call = path: ext:
+            (lib.filterAttrs (_: val:
+              !(lib.hasSuffix ".nix" val)) (lib.mapAttrs' (name: _:
+              lib.nameValuePair (lib.removeSuffix ext name) "${path}/${name}")
+            (builtins.readDir path)))
             // {inherit path;};
+        in {
+          fonts = call ./fonts "";
+          shaders = call ./shaders ".frag";
+          wallpapers = call ./wallpapers ".jpg";
         };
       };
 }
