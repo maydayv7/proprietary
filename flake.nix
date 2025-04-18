@@ -26,9 +26,9 @@
             (builtins.readDir path)))
             // {inherit path;};
         in {
-          fonts = call ./fonts "";
-          shaders = call ./shaders ".frag";
-          wallpapers = call ./wallpapers ".jpg";
+          fonts = call ./fonts ""; # Proprietary Fonts
+          shaders = call ./shaders ".frag"; # Hyprland Shaders
+          wallpapers = call ./wallpapers ".jpg"; # Beautiful Wallpapers
         };
       };
 }
